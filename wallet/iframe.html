@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>Hidden Iframe</title>
+	</head>
+	<body>
+			
+		<!-- This exposes the library as a global variable: ethers -->
+		<script src="https://cdn.ethers.io/scripts/ethers-v4.min.js"
+		charset="utf-8"
+		type="text/javascript">
+		</script>
+		
+		<script>
+
+		// TODO do not leave unecnryoted
+		var privateKey = localStorage.getItem('_priv');
+		var wallet
+		if(privateKey)  {
+			wallet = new ethers.Wallet(privateKey);
+		} else {
+			wallet = ethers.Wallet.createRandom();
+			privateKey = wallet.privateKey;
+			localStorage.setItem('_priv', privateKey);
+		}
+
+		var supportedMethods = {
+			"eth_accounts": (payload, callback) => {
+				callback(null, [wallet.address]);
+			},
+			"eth_sendTransaction": (payload, callback) => {
+				callback(null, wallet.address);
+			}
+		};
+
+		var firstUrl = null;
+		var source = window.parent;
+		
+		function sendAsync(payload, callback) {
+			supportedMethods[payload.method](payload, callback);
+		}
+		
+		function receiveMessage(event){
+			if(event.source != source){
+				return;
+			}
+			if(firstUrl){
+				if(firstUrl != event.origin){
+					return;
+				}
+			}else{
+				firstUrl = event.origin;
+			}
+			
+			var data = event.data;
+			try{
+				processMessage(data,event.source);
+			}catch(e){
+				event.source.postMessage({id:data.id,result:null,error:{message:"Could not process message data"},type:"notValid"},firstUrl);
+				console.error("Error", "The application has sent invalid data", data);
+			}
+		}
+	
+		function processMessage(data, sourceWindow){
+			if(supportedMethods[data.payload.method]){
+				sendAsync(data.payload, function(error,result){
+					sourceWindow.postMessage({id:data.id, result:{id:data.payload.id, result:result, jsonrpc: data.payload.jsonrpc}, error:error}, firstUrl);
+				});
+			}else{
+				sourceWindow.postMessage({id:data.id, result:null, error:{message:"method (" + data.payload.method + ") not supported in iframe"},type:"notAllowed"},firstUrl);
+			}
+		}
+		
+		window.addEventListener("message", receiveMessage);
+		source.postMessage("ready","*"); //TODO do not use wildcard
+		</script>
+	</body>
+</html>

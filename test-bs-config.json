@@ -1,0 +1,6 @@
+{
+    "port": 3004,
+    "server": {
+        "baseDir": ["test", "provider"]
+    }
+}
