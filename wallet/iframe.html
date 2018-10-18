@@ -28,8 +28,14 @@
 			"eth_accounts": (payload, callback) => {
 				callback(null, [wallet.address]);
 			},
-			"eth_sendTransaction": (payload, callback) => {
-				callback(null, wallet.address);
+			"eth_signTransaction": (payload, callback) => {
+				wallet.sign(payload.params[0])
+					.then(function(result){
+						callback(null, result);
+					})
+					.catch(function(error){
+						callback(error);
+					});
 			}
 		};
 
@@ -62,6 +68,7 @@
 		}
 	
 		function processMessage(data, sourceWindow){
+			console.log('IFRAME, processMessage', data);
 			if(supportedMethods[data.payload.method]){
 				sendAsync(data.payload, function(error,result){
 					sourceWindow.postMessage({id:data.id, result:{id:data.payload.id, result:result, jsonrpc: data.payload.jsonrpc}, error:error}, firstUrl);
