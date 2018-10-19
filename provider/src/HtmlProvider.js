@@ -38,6 +38,8 @@ function HtmlProvider(trustedHost, readURL, opts) {
 	this.iframe.id = iframeId; 
 	this.iframe.style.display = "none";
 
+	this.pendingUserConfirmation = null;
+
 	this.handleEvent = function(event){
 		if(event.source != self.currentPopup && event.source != self.iframe.contentWindow){
 			return;
@@ -49,10 +51,37 @@ function HtmlProvider(trustedHost, readURL, opts) {
 		console.log('receiving message : ', event.data);
 		
 		var data = event.data;
-		if(data != "ready"){			
-			var callback = self.callbacks[data.id];
-			delete self.callbacks[data.id];
-			callback(data.error, data.result);
+		if(data != "ready") {
+			if (!data.error && data.requireUserConfirmation) { // no result givem (data.result : old payload)
+				// show popup / cancel old pending
+				if (this.pendingUserConfirmation) {
+					self.executeCallback(this.pendingUserConfirmation.id, 'overriden by new user \'s confirmation request', null);		
+				}
+				this.pendingUserConfirmation = {
+					id: data.id,
+					payload: data.result
+				};
+				// let the HtmlProvider do all the work to create the link.
+				// if(!self.notification) {
+				// 	self.notification = document.getElementById('__htmlprovider__notification');
+				// 	if(!self.notification) {
+				// 		self.notification = document.createElement('div');
+				// 		self.notification.id = '__htmlprovider__notification';
+				// 		self.notification.innerHTML = "<a id='__htmlprovider__authorization' target='_blank'>require authorization</a>";
+				// 	}
+				// }
+				// document.body.insertBefore(self.notification, document.body.firstChild); // ensure first child ?
+				// var element = document.getElementById('__htmlprovider__authorization');
+				// element.onclick = function() {
+				// 	var popup = window.open(trustedHost + '/popup.html', '_blank');
+				// 	popup.
+				// }
+				
+				// or let the iframe take care of it, simplifying the popup role
+				this.iframe.style.display = "block";
+			} else {
+				self.executeCallback(data.id, data.error, data.result);
+			}
 		}
 	}	
 	
@@ -66,7 +95,7 @@ function HtmlProvider(trustedHost, readURL, opts) {
 		for (var i = 0; i < arrayLength; i++) {
 			var data = self.queue[i];
 			console.log('sending queued message : ', data.payload);
-			self.sendAsync(data.payload,data.callback);
+			self.sendToIFrame(data.payload,data.callback);
 		}
 		self.queue.length = 0;
 	}
@@ -76,16 +105,12 @@ function HtmlProvider(trustedHost, readURL, opts) {
 	this.setupEngine();
 }
 
-HtmlProvider.prototype.privateAsync = function (payload, callback) {
-	console.log('private async ');
-	try {
-		this.callbacks[this.counter] = callback;
-		this.iframe.contentWindow.postMessage({id:this.counter, payload:payload}, this.trustedHost);
-		this.counter++;
-	} catch(e) {
-		callback({message:'ERROR: Couldn\'t postMessage to iframe at '+ this.iframe.location.href,type:"error"});
-	}
+HtmlProvider.prototype.executeCallback = function(id, error, result) {
+	var callback = this.callbacks[id];
+	delete this.callbacks[id];
+	callback(error, result);
 }
+
 
 HtmlProvider.prototype.sendToIFrame = function (payload, callback) {
 	console.log('sendToIFrame', payload);
@@ -93,7 +118,14 @@ HtmlProvider.prototype.sendToIFrame = function (payload, callback) {
 		this.queue.push({payload:payload,callback:callback});
 		return;
 	}
-	this.privateAsync(payload, callback);
+
+	try {
+		this.callbacks[this.counter] = callback;
+		this.iframe.contentWindow.postMessage({id:this.counter, payload:payload}, this.trustedHost);
+		this.counter++;
+	} catch(e) {
+		callback({message:'ERROR: Couldn\'t postMessage to iframe at '+ this.iframe.location.href,type:"error"});
+	}
 };
 
 HtmlProvider.prototype.setupEngine = function() {

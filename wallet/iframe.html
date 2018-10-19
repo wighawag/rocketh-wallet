@@ -4,6 +4,26 @@
 		<title>Hidden Iframe</title>
 	</head>
 	<body>
+
+		<!-- iframe is responsible for listening to popup confirmation-->
+		<a href="popup.html#type=transaction&id=1" target="_blank">require authorization</a>
+
+		<!-- does not need to use window.open -->
+		<!-- <a id='authorization' href="/" target="_blank">require authorization</a> -->
+		<!-- <script>
+			var element = document.getElementById('authorization');
+			element.onclick = function() {
+				var popup = window.open('popup.html', '_blank');
+				if(!popup) {
+					// TODO show arning to use , unblock popups ?
+				}
+				console.log('popup', popup);
+				// TODO listen for events 
+				// upon confirmation -> give back result to iframe listener (HtmlProvider)
+			}
+		</script> -->
+
+
 			
 		<!-- This exposes the library as a global variable: ethers -->
 		<script src="https://cdn.ethers.io/scripts/ethers-v4.min.js"
@@ -14,7 +34,7 @@
 		<script>
 
 		// TODO do not leave unecnryoted
-		var privateKey = localStorage.getItem('_priv');
+		var privateKey = localStorage.getItem('_priv'); // TODO look at sessionStorage for not reqiring decryption
 		var wallet
 		if(privateKey)  {
 			wallet = new ethers.Wallet(privateKey);
@@ -29,13 +49,14 @@
 				callback(null, [wallet.address]);
 			},
 			"eth_signTransaction": (payload, callback) => {
-				wallet.sign(payload.params[0])
-					.then(function(result){
-						callback(null, result);
-					})
-					.catch(function(error){
-						callback(error);
-					});
+				callback()
+				// wallet.sign(payload.params[0])
+				// 	.then(function(result){
+				// 		callback(null, result);
+				// 	})
+				// 	.catch(function(error){
+				// 		callback(error);
+				// 	});
 			}
 		};
 
@@ -47,6 +68,11 @@
 		}
 		
 		function receiveMessage(event){
+			if(event.origin == window.origin) {
+				if(event.data.type == 'confirmation') {
+					console.log('POPUP CONFIRMATION', event.data.result);
+				}
+			}
 			if(event.source != source){
 				return;
 			}
@@ -71,7 +97,11 @@
 			console.log('IFRAME, processMessage', data);
 			if(supportedMethods[data.payload.method]){
 				sendAsync(data.payload, function(error,result){
-					sourceWindow.postMessage({id:data.id, result:{id:data.payload.id, result:result, jsonrpc: data.payload.jsonrpc}, error:error}, firstUrl);
+					if(result) {
+						sourceWindow.postMessage({id:data.id, result:{id:data.payload.id, result:result, jsonrpc: data.payload.jsonrpc}, error:error}, firstUrl);
+					} else {
+						sourceWindow.postMessage({id:data.id, result:data.payload, error:error, requireUserConfirmation:true}, firstUrl);
+					}
 				});
 			}else{
 				sourceWindow.postMessage({id:data.id, result:null, error:{message:"method (" + data.payload.method + ") not supported in iframe"},type:"notAllowed"},firstUrl);
