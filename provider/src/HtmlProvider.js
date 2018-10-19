@@ -120,8 +120,8 @@ HtmlProvider.prototype.sendToIFrame = function (payload, callback) {
 	}
 
 	try {
-		this.callbacks[this.counter] = callback;
-		this.iframe.contentWindow.postMessage({id:this.counter, payload:payload}, this.trustedHost);
+		this.callbacks[payload.id] = callback;
+		this.iframe.contentWindow.postMessage(payload, this.trustedHost);
 		this.counter++;
 	} catch(e) {
 		callback({message:'ERROR: Couldn\'t postMessage to iframe at '+ this.iframe.location.href,type:"error"});
@@ -157,9 +157,9 @@ HtmlProvider.prototype.setupEngine = function() {
 	// id mgmt
 	this.addProvider(new HookedWalletSubprovider({
 		getAccounts: function(cb){
-			self.sendToIFrame({id:counter++, jsonrpc:"2.0", method:'eth_accounts', params:[]}, function(error, json) {
-				console.log('result from iframe', error, json);
-				cb(error, json.result);
+			self.sendToIFrame({id:counter++, jsonrpc:"2.0", method:'eth_accounts', params:[]}, function(error, result) {
+				console.log('result from iframe', error, result);
+				cb(error, result);
 			});
 		},
 		signTransaction: function(txData, cb){
@@ -168,9 +168,9 @@ HtmlProvider.prototype.setupEngine = function() {
 			if(txData.data && !(txData.data[0] == '0' && txData.data[1] == 'x')) {
 				txData.data = '0x' + txData.data;	
 			}
-			self.sendToIFrame({id:counter++, jsonrpc:"2.0", method:'eth_signTransaction', params:[txData]}, function(error, json) {
-				console.log('result from iframe', error, json);
-				cb(error, json.result);
+			self.sendToIFrame({id:counter++, jsonrpc:"2.0", method:'eth_signTransaction', params:[txData]}, function(error, result) {
+				console.log('result from iframe', error, result);
+				cb(error, result);
 			});
 		},
 	}))

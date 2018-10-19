@@ -68,6 +68,7 @@
 		}
 		
 		function receiveMessage(event){
+			console.log('IFRAME receiving', event.data);
 			if(event.origin == window.origin) {
 				if(event.data.type == 'confirmation') {
 					console.log('POPUP CONFIRMATION', event.data.result);
@@ -88,23 +89,23 @@
 			try{
 				processMessage(data,event.source);
 			}catch(e){
-				event.source.postMessage({id:data.id,result:null,error:{message:"Could not process message data"},type:"notValid"},firstUrl);
+				event.source.postMessage({id:data.id,result:null,error:{message:"Could not process message data",type:"notValid"}},firstUrl);
 				console.error("Error", "The application has sent invalid data", data);
 			}
 		}
 	
-		function processMessage(data, sourceWindow){
-			console.log('IFRAME, processMessage', data);
-			if(supportedMethods[data.payload.method]){
-				sendAsync(data.payload, function(error,result){
+		function processMessage(payload, sourceWindow){
+			console.log('IFRAME, processMessage', payload);
+			if(supportedMethods[payload.method]){
+				sendAsync(payload, function(error,result){
 					if(result) {
-						sourceWindow.postMessage({id:data.id, result:{id:data.payload.id, result:result, jsonrpc: data.payload.jsonrpc}, error:error}, firstUrl);
+						sourceWindow.postMessage({id:payload.id, result:result, error:error}, firstUrl);
 					} else {
-						sourceWindow.postMessage({id:data.id, result:data.payload, error:error, requireUserConfirmation:true}, firstUrl);
+						sourceWindow.postMessage({id:payload.id, result:payload, error:error, requireUserConfirmation:true}, firstUrl);
 					}
 				});
 			}else{
-				sourceWindow.postMessage({id:data.id, result:null, error:{message:"method (" + data.payload.method + ") not supported in iframe"},type:"notAllowed"},firstUrl);
+				sourceWindow.postMessage({id:payload.id, result:null, error:{message:"method (" + payload.method + ") not supported in iframe", type:"notAllowed"}},firstUrl);
 			}
 		}
 		
