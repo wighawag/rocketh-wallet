@@ -310,12 +310,29 @@
 			console.log('POPUP open by: ', window.opener);
 			var sourceURL = window.opener.location;
 
+			var id = 0;
+			var type = null;
+			if(window.location.hash) {
+				var typeStartIndex = window.location.hash.indexOf('type=') + 5;
+				var ampersandIndex = window.location.hash.indexOf('&');
+				var idStartIndex = window.location.hash.indexOf('id=') + 3;
+				var hashLength = window.location.hash.length;
+				type = window.location.hash.substring(typeStartIndex, ampersandIndex);
+				id = parseInt(window.location.hash.substring(idStartIndex, hashLength));
+			}
+
+			if(type == 'transaction') {
+
+			} else {
+				console.error('not supported yet', type);
+			}
+
 			var yesElement = document.getElementById('yes');
 			var noElement = document.getElementById('no');
 			var dismissElement = document.getElementById('dismiss');
 
 			function no() {
-				window.opener.postMessage({type: 'confirmation', result:false}, sourceURL);
+				window.opener.postMessage({id: id, type: 'confirmation', result:false}, sourceURL);
 				window.close();
 			}
 
@@ -323,7 +340,7 @@
 			dismissElement.onclick = no; 
 
 			yesElement.onclick = function() {
-				window.opener.postMessage({type: 'confirmation', result:true}, sourceURL);
+				window.opener.postMessage({id: id, type: 'confirmation', result:true}, sourceURL);
 				window.close();
 			}
 

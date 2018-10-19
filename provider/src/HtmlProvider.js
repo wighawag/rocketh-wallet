@@ -80,6 +80,10 @@ function HtmlProvider(trustedHost, readURL, opts) {
 				// or let the iframe take care of it, simplifying the popup role
 				this.iframe.style.display = "block";
 			} else {
+				if(this.pendingUserConfirmation && this.pendingUserConfirmation.id == data.id) {
+					this.iframe.style.display = "none";
+					this.pendingUserConfirmation = null;
+				}
 				self.executeCallback(data.id, data.error, data.result);
 			}
 		}
