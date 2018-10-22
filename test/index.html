@@ -23,13 +23,20 @@
             web3.eth.getAccounts()
                 .then(function(accounts) {
                     console.log('accounts', accounts);
-                    return web3.eth.sendTransaction({from:accounts[0], to:accounts[0], value:1, gas:1})
-                        .then(function(receipt) {
-                            console.log('receipt', receipt);
+                    return web3.eth.sign('hello world', accounts[0])
+                        .then(function(signedMessage) {
+                            console.log('signedMessage', signedMessage);
                         })
                         .catch(function(error) {
-                            console.error('sendTransaction error', error);
+                            console.error('signing error', error);
                         });
+                    // return web3.eth.sendTransaction({from:accounts[0], to:accounts[0], value:1, gas:1})
+                    //     .then(function(receipt) {
+                    //         console.log('receipt', receipt);
+                    //     })
+                    //     .catch(function(error) {
+                    //         console.error('sendTransaction error', error);
+                    //     });
                 })
                 .catch(function(error) {
                     console.error('accounts error', error);

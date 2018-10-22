@@ -173,10 +173,16 @@ HtmlProvider.prototype.setupEngine = function() {
 				txData.data = '0x' + txData.data;	
 			}
 			self.sendToIFrame({id:counter++, jsonrpc:"2.0", method:'eth_signTransaction', params:[txData]}, function(error, result) {
-				console.log('result from iframe', error, result);
+				console.log('eth_signTransaction from iframe', error, result);
 				cb(error, result);
 			});
 		},
+		signMessage: function(msgParams, cb) {
+			self.sendToIFrame({id:counter++, jsonrpc:"2.0", method:'eth_signMessage', params:[msgParams.from, msgParams.data]}, function(error, result) {
+				console.log('eth_signMessage from iframe', error, result);
+				cb(error, result);
+			});	
+		}
 	}))
 	
 	// data source

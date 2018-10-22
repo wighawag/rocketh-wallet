@@ -25,8 +25,8 @@
 
 
 			
-		<!-- This exposes the library as a global variable: ethers -->
-		<script src="https://cdn.ethers.io/scripts/ethers-v4.min.js"
+		<!-- This exposes the library as a global variable: ethers // TODO inject the whole js into the page -->
+		<script src="https://cdn.ethers.io/scripts/ethers-v4.min.js" 
 		charset="utf-8"
 		type="text/javascript">
 		</script>
@@ -34,16 +34,26 @@
 		<script>
 		var authorizationLink = document.getElementById('authorizationLink');
 
+		// TODO do not leave unecnryoted, except for sessionStorage to provide an better UX
+		var privateKey = sessionStorage.getItem('_priv');
+		if(!privateKey) {
+			privateKey = localStorage.getItem('_priv'); // TODO use encrypted data for localstorage
+			sessionStorage.setItem('_priv', privateKey);
+		} else {
+			console.log('session storage');
+		}
 		
-		// TODO do not leave unecnryoted
-		var privateKey = localStorage.getItem('_priv'); // TODO look at sessionStorage for not reqiring decryption
 		var wallet
 		if(privateKey)  {
 			wallet = new ethers.Wallet(privateKey);
 		} else {
+			// TODO popup ui to ask give the seed and ask password for encryption
+			// This should basically request the html-provider to show iframe content that will display the link to the popup
+			// start to generate a unique pattern to protect use from malicious attempt at capturing its password
 			wallet = ethers.Wallet.createRandom();
 			privateKey = wallet.privateKey;
 			localStorage.setItem('_priv', privateKey);
+			sessionStorage.setItem('_priv', privateKey);
 		}
 
 
@@ -63,7 +73,39 @@
 							callback(error);
 						});
 				}
+			},
+
+			"eth_signMessage": function(payload, callback, confirmed) {
+				if(payload.params[0].toLowerCase() !== wallet.address.toLowerCase()) {
+					callback('cannot sign for ', payload.params[0]);
+					return;	
+				}
+				if(!confirmed) {
+					callback(null, null, 'transaction');
+				} else {
+					wallet.signMessage(payload.params[0])
+						.then(function(result){
+							callback(null, result);
+						})
+						.catch(function(error){
+							callback(error);
+						});
+				}
 			}
+			
+			// "eth_signTransaction": function (payload, callback, confirmed) {
+			// 	if(!confirmed) {
+			// 		callback(null, null, 'transaction');
+			// 	} else {
+			// 		wallet.sign(payload.params[0])
+			// 			.then(function(result){
+			// 				callback(null, result);
+			// 			})
+			// 			.catch(function(error){
+			// 				callback(error);
+			// 			});
+			// 	}
+			// }
 		};
 
 		var firstUrl = null;
@@ -123,7 +165,7 @@
 				}, 
 				confirmed);
 			}else{
-				sourceWindow.postMessage({id:payload.id, result:null, error:{message:"method (" + payload.method + ") not supported in iframe", type:"notAllowed"}},firstUrl);
+				sourceWindow.postMessage({id:payload.id, result:null, error:{message:"method (" + payload.method + ") not supported in iframe", type:"notSupported"}},firstUrl);
 			}
 		}
 		
