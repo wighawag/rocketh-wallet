@@ -17,7 +17,7 @@
 			
 		<script>
             // var defaultProvider = new Web3.providers.HttpProvider('https://rinkeby.infura.io/v3/603eb7935c3b4d1285c08b68020c3001');
-            var provider = new HtmlProvider('http://localhost:3000', 'https://rinkeby.infura.io/v3/603eb7935c3b4d1285c08b68020c3001');
+            var provider = new HtmlProvider('http://localhost:3000', 'http://localhost:8545'); //'https://rinkeby.infura.io/v3/603eb7935c3b4d1285c08b68020c3001');
 
             var web3 = new Web3(provider);
             web3.eth.getAccounts()

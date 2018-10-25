@@ -21,7 +21,6 @@ function HtmlProvider(trustedHost, readURL, opts) {
 	this.callbacks = {};
 	this.trustedHost = trustedHost;
 	this.queue = []
-	this.currentPopup = null
 	 
 	var iframeId = "__htmlprovider__";
 	var currentIframe = document.getElementById(iframeId);
@@ -41,17 +40,23 @@ function HtmlProvider(trustedHost, readURL, opts) {
 	this.pendingUserConfirmation = null;
 
 	this.handleEvent = function(event){
-		if(event.source != self.currentPopup && event.source != self.iframe.contentWindow){
+		if(event.source != self.iframe.contentWindow){
 			return;
 		}
 		if(event.type != "message" || (event.origin != self.trustedHost && self.trustedHost != "*")){ // TODO do not allow wildcard
 			return;
 		}
 
-		console.log('receiving message : ', event.data);
+		console.log('receiving message from iframe: ', event.data);
 		
 		var data = event.data;
-		if(data != "ready") {
+		if(data == "ready") {
+			this.iframe.style.display = "none";
+		} else if(data == 'unlock_required') {
+			this.iframe.style.display = "block";
+		} else if(data == 'new_account_required') {
+			this.iframe.style.display = "block";
+		} else {
 			if (!data.error && data.requireUserConfirmation) { // no result givem (data.result : old payload)
 				// show popup / cancel old pending
 				if (this.pendingUserConfirmation) {
@@ -61,23 +66,6 @@ function HtmlProvider(trustedHost, readURL, opts) {
 					id: data.id,
 					payload: data.result
 				};
-				// let the HtmlProvider do all the work to create the link.
-				// if(!self.notification) {
-				// 	self.notification = document.getElementById('__htmlprovider__notification');
-				// 	if(!self.notification) {
-				// 		self.notification = document.createElement('div');
-				// 		self.notification.id = '__htmlprovider__notification';
-				// 		self.notification.innerHTML = "<a id='__htmlprovider__authorization' target='_blank'>require authorization</a>";
-				// 	}
-				// }
-				// document.body.insertBefore(self.notification, document.body.firstChild); // ensure first child ?
-				// var element = document.getElementById('__htmlprovider__authorization');
-				// element.onclick = function() {
-				// 	var popup = window.open(trustedHost + '/popup.html', '_blank');
-				// 	popup.
-				// }
-				
-				// or let the iframe take care of it, simplifying the popup role
 				this.iframe.style.display = "block";
 			} else {
 				if(this.pendingUserConfirmation && this.pendingUserConfirmation.id == data.id) {

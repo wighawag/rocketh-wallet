@@ -4,29 +4,10 @@
 		<title>Hidden Iframe</title>
 	</head>
 	<body>
-
-		<!-- iframe is responsible for listening to popup confirmation-->
-		<a id='authorizationLink' href="popup.html#type=transaction&id=1" target="_blank">require authorization</a>
-
-		<!-- does not need to use window.open -->
-		<!-- <a id='authorization' href="/" target="_blank">require authorization</a> -->
-		<!-- <script>
-			var element = document.getElementById('authorization');
-			element.onclick = function() {
-				var popup = window.open('popup.html', '_blank');
-				if(!popup) {
-					// TODO show arning to use , unblock popups ?
-				}
-				console.log('popup', popup);
-				// TODO listen for events 
-				// upon confirmation -> give back result to iframe listener (HtmlProvider)
-			}
-		</script> -->
-
-
-			
+		<a id='authorizationLink' href="popup.html#type=transaction&id=1" target="_blank">Auhtorization Requested!</a>
+	
 		<!-- This exposes the library as a global variable: ethers // TODO inject the whole js into the page -->
-		<script src="https://cdn.ethers.io/scripts/ethers-v4.min.js" 
+		<script src="ethers-v4.min.js" 
 		charset="utf-8"
 		type="text/javascript">
 		</script>
@@ -34,10 +15,11 @@
 		<script>
 		var authorizationLink = document.getElementById('authorizationLink');
 
-		// TODO do not leave unecnryoted, except for sessionStorage to provide an better UX
+		// TODO do not leave unecnryoted, except for sessionStorage to provide an better UX // TODO no as this might be save to disk too?
 		var privateKey = sessionStorage.getItem('_priv');
+		var unlock_required = true;
 		if(!privateKey) {
-			privateKey = localStorage.getItem('_priv'); // TODO use encrypted data for localstorage
+			privateKey = localStorage.getItem('_priv'); // TODO use encrypted data for localstorage // TODO would need a popup to decrypt
 			sessionStorage.setItem('_priv', privateKey);
 		} else {
 			console.log('session storage');
@@ -65,13 +47,17 @@
 				if(!confirmed) {
 					callback(null, null, 'transaction');
 				} else {
-					wallet.sign(payload.params[0])
-						.then(function(result){
-							callback(null, result);
-						})
-						.catch(function(error){
-							callback(error);
-						});
+					if(confirmed == 'yes') {
+						wallet.sign(payload.params[0])
+							.then(function(result){
+								callback(null, result);
+							})
+							.catch(function(error){
+								callback(error);
+							});
+					} else {
+						callback({message:"refused by user",type:"refused"});
+					}
 				}
 			},
 
@@ -83,48 +69,56 @@
 				if(!confirmed) {
 					callback(null, null, 'transaction');
 				} else {
-					wallet.signMessage(payload.params[0])
-						.then(function(result){
-							callback(null, result);
-						})
-						.catch(function(error){
-							callback(error);
-						});
+					if(confirmed == 'yes') {
+						wallet.signMessage(payload.params[0])
+							.then(function(result){
+								callback(null, result);
+							})
+							.catch(function(error){
+								callback(error);
+							});
+					} else {
+						callback({message:"refused by user",type:"refused"});
+					}
 				}
-			}
-			
-			// "eth_signTransaction": function (payload, callback, confirmed) {
-			// 	if(!confirmed) {
-			// 		callback(null, null, 'transaction');
-			// 	} else {
-			// 		wallet.sign(payload.params[0])
-			// 			.then(function(result){
-			// 				callback(null, result);
-			// 			})
-			// 			.catch(function(error){
-			// 				callback(error);
-			// 			});
-			// 	}
-			// }
+			},
+
+			"unlock": function(payload, callback, password) { // TODO move out of here
+				if(!password) {
+					callback('cannot unlock unless popup approved');
+				} else {
+					unlock_required = false; // TODO decrypt via password provided
+					source.postMessage("ready","*"); //TODO do not use wildcard 
+				}
+			},
 		};
 
-		var firstUrl = null;
+		var firstOrigin = null;
 		var source = window.parent;
 		var currentUserConfirmation = null;
 		
 		function receiveMessage(event){
 			console.log('IFRAME receiving', event.data);
 			if(event.origin == window.origin) {
-				if(event.data.type == 'confirmation') {
+				console.log('from popup');
+				if(event.data.type == 'ready') { // TODO what about unlock / new account
+					console.log('popup ready to get data');
+					if(currentUserConfirmation) {
+						 // should we check it is new ? // or can the popup do it via id specified before
+						event.source.postMessage(currentUserConfirmation, event.origin);
+					} else {
+						console.error('no user confirmation was waiting...');
+					}
+				} else if(event.data.type == 'confirmation') {
 					console.log('POPUP transaction', event.data);
 					console.log('WAITING for', currentUserConfirmation);
 					if(currentUserConfirmation && currentUserConfirmation.id == event.data.id) {
 						var copy = currentUserConfirmation;
 						currentUserConfirmation = null;
 						if(event.data.result) {
-							processMessage(copy, source, true);
+							processMessage(copy, source, event.data.result);
 						} else {
-							source.postMessage({id:copy.id,result:null,error:{message:"refused by user",type:"refused"}},firstUrl);
+							source.postMessage({id:copy.id,result:null,error:event.data.error},firstOrigin);
 						}
 					} else {
 						console.error('old confirmation popup ?');
@@ -134,24 +128,32 @@
 			if(event.source != source){
 				return;
 			}
-			if(firstUrl){
-				if(firstUrl != event.origin){
+			if(firstOrigin){
+				if(firstOrigin != event.origin){
 					return;
 				}
 			}else{
-				firstUrl = event.origin;
+				firstOrigin = event.origin;
+			}
+
+			console.log('from trusted host');
+
+			if(unlock_required) {
+				event.source.postMessage({id:event.data.id,result:null,error:{message:"Account locked",type:"notValid"}},firstOrigin);
+			} else {
+				var data = event.data;
+				try{
+					processMessage(data,event.source);
+				}catch(e){
+					event.source.postMessage({id:data.id,result:null,error:{message:"Could not process message data",type:"notValid"}},firstOrigin);
+					console.error("Error", "The application has sent invalid data", data);
+				}
 			}
 			
-			var data = event.data;
-			try{
-				processMessage(data,event.source);
-			}catch(e){
-				event.source.postMessage({id:data.id,result:null,error:{message:"Could not process message data",type:"notValid"}},firstUrl);
-				console.error("Error", "The application has sent invalid data", data);
-			}
+			
 		}
 	
-		function processMessage(payload, sourceWindow, confirmed){
+		function processMessage(payload, sourceWindow, popupAnswer){
 			console.log('IFRAME, processMessage', payload);
 			if(supportedMethods[payload.method]){
 				supportedMethods[payload.method](payload, function(error, result, confirmationType) {
@@ -161,16 +163,23 @@
 						currentUserConfirmation = payload; // TODO queue system ?
 						authorizationLink.href = "popup.html#type=" + confirmationType + "&id=" + payload.id;
 					}
-					sourceWindow.postMessage({id:payload.id, result:result, error:error, requireUserConfirmation:confirmationType != null}, firstUrl);
+					sourceWindow.postMessage({id:payload.id, result:result, error:error, requireUserConfirmation:confirmationType != null}, firstOrigin);
 				}, 
-				confirmed);
+				popupAnswer);
 			}else{
-				sourceWindow.postMessage({id:payload.id, result:null, error:{message:"method (" + payload.method + ") not supported in iframe", type:"notSupported"}},firstUrl);
+				sourceWindow.postMessage({id:payload.id, result:null, error:{message:"method (" + payload.method + ") not supported in iframe", type:"notSupported"}},firstOrigin);
 			}
 		}
 		
 		window.addEventListener("message", receiveMessage);
-		source.postMessage("ready","*"); //TODO do not use wildcard
+
+		// TODO should this event be send after unlock / newAccount is resolved ?
+		// source.postMessage("ready","*"); //TODO do not use wildcard
+
+		// TODO send ready / unlock / newAccount 
+		currentUserConfirmation = {id: 99999, method:"unlock", params:[]}; // TODO use diffetent object type, as they won;t give anything back to host (html-provider)
+		authorizationLink.href = "popup.html#type=" + 'unlock' + "&id=" + currentUserConfirmation.id;
+		source.postMessage("unlock_required","*"); //TODO do not use wildcard
 		</script>
 	</body>
 </html>

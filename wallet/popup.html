@@ -306,7 +306,6 @@
 		</div> <!-- cd-popup -->
 
 		<script>
-
 			console.log('POPUP open by: ', window.opener);
 			var sourceURL = window.opener.location;
 
@@ -332,7 +331,7 @@
 			var dismissElement = document.getElementById('dismiss');
 
 			function no() {
-				window.opener.postMessage({id: id, type: 'confirmation', result:false}, sourceURL);
+				window.opener.postMessage({id: id, type: 'confirmation', result:'no'}, sourceURL);
 				window.close();
 			}
 
@@ -340,11 +339,18 @@
 			dismissElement.onclick = no; 
 
 			yesElement.onclick = function() {
-				window.opener.postMessage({id: id, type: 'confirmation', result:true}, sourceURL);
+				window.opener.postMessage({id: id, type: 'confirmation', result:'yes'}, sourceURL);
 				window.close();
 			}
 
-
+			function receiveMessage(event) {
+				if(event.origin == window.origin) {
+					// comign from iframe
+					console.log('POPUP receiving', event.data);
+				}
+			}
+			window.addEventListener("message", receiveMessage);
+			window.opener.postMessage("ready","*"); //TODO do not use wildcard
 		</script>
 	</body>
 </html>

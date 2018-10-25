@@ -2,9 +2,10 @@
   "name": "html-provider",
   "version": "0.1.0",
   "scripts": {
-    "serve": "lite-server",
-    "serveTest": "lite-server -c test-bs-config.json",
-    "build": "watchify -o provider/bundle.js -e provider/src/HtmlProvider.js -s HtmlProvider"
+    "serve": "lite-server --no-open",
+    "serveTest": "lite-server -c test-bs-config.json --no-open",
+    "build": "watchify -o provider/bundle.js -e provider/src/HtmlProvider.js -s HtmlProvider",
+    "ganache": "ganache-cli --gasLimit 19000000 -a 10 -s seed_to_use_same_data"
   },
   "devDependencies": {
     "browserify": "^16.2.3",
