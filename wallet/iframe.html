@@ -17,27 +17,24 @@
 
 		// TODO do not leave unecnryoted, except for sessionStorage to provide an better UX // TODO no as this might be save to disk too?
 		var privateKey = sessionStorage.getItem('_priv');
-		var unlock_required = true;
+		var enabled = false;
+		var accountPresent = false;
 		if(!privateKey) {
 			privateKey = localStorage.getItem('_priv'); // TODO use encrypted data for localstorage // TODO would need a popup to decrypt
-			sessionStorage.setItem('_priv', privateKey);
+			if(privateKey) {
+				sessionStorage.setItem('_priv', privateKey);
+			}
 		} else {
 			console.log('session storage');
 		}
 		
 		var wallet
 		if(privateKey)  {
+			accountPresent = true;
 			wallet = new ethers.Wallet(privateKey);
 		} else {
-			// TODO popup ui to ask give the seed and ask password for encryption
-			// This should basically request the html-provider to show iframe content that will display the link to the popup
-			// start to generate a unique pattern to protect use from malicious attempt at capturing its password
-			wallet = ethers.Wallet.createRandom();
-			privateKey = wallet.privateKey;
-			localStorage.setItem('_priv', privateKey);
-			sessionStorage.setItem('_priv', privateKey);
+			accountPresent = false;
 		}
-
 
 		var supportedMethods = {
 			"eth_accounts": function (payload, callback) {
@@ -61,15 +58,15 @@
 				}
 			},
 
-			"eth_signMessage": function(payload, callback, confirmed) {
+			"eth_signMessage": function(payload, callback, popupAnswer) {
 				if(payload.params[0].toLowerCase() !== wallet.address.toLowerCase()) {
-					callback('cannot sign for ', payload.params[0]);
+					callback('cannot sign for ' + payload.params[0]);
 					return;	
 				}
-				if(!confirmed) {
+				if(!popupAnswer) {
 					callback(null, null, 'transaction');
 				} else {
-					if(confirmed == 'yes') {
+					if(popupAnswer == 'yes') {
 						wallet.signMessage(payload.params[0])
 							.then(function(result){
 								callback(null, result);
@@ -83,14 +80,35 @@
 				}
 			},
 
-			"unlock": function(payload, callback, password) { // TODO move out of here
-				if(!password) {
-					callback('cannot unlock unless popup approved');
+			"enable": function(payload, callback, popupAnswer) { // TODO move out of here
+				if(!popupAnswer) {
+					callback(null, null, accountPresent? 'enable' : 'new_account');
 				} else {
-					unlock_required = false; // TODO decrypt via password provided
-					source.postMessage("ready","*"); //TODO do not use wildcard 
+					if(popupAnswer == 'yes') {
+						enabled = true;
+						callback(null);
+					} else {
+						callback('refused');
+					}
 				}
 			},
+
+			// "new_account": function(payload, callback, complete) { // TODO move out of here
+			// 	if(!complete) {
+			// 		callback('cannot create account without popup process'); // TODO ?
+			// 	} else {
+			// 		// TODO if(complete == 'yes'){}
+			// 		accountPresent = true; // TODO decrypt via password provided
+			// 		enabled = true;
+			// 		// TODO popup ui to ask give the seed and ask password for encryption
+			// 		// + start to generate a unique pattern to protect use from malicious attempt at capturing its password
+			// 		wallet = ethers.Wallet.createRandom();
+			// 		privateKey = wallet.privateKey;
+			// 		localStorage.setItem('_priv', privateKey);
+			// 		sessionStorage.setItem('_priv', privateKey);
+			// 		source.postMessage("enabled","*"); //TODO do not use wildcard 
+			// 	}
+			// },
 		};
 
 		var firstOrigin = null;
@@ -101,7 +119,7 @@
 			console.log('IFRAME receiving', event.data);
 			if(event.origin == window.origin) {
 				console.log('from popup');
-				if(event.data.type == 'ready') { // TODO what about unlock / new account
+				if(event.data.type == 'ready') {
 					console.log('popup ready to get data');
 					if(currentUserConfirmation) {
 						 // should we check it is new ? // or can the popup do it via id specified before
@@ -138,10 +156,26 @@
 
 			console.log('from trusted host');
 
-			if(unlock_required) {
-				event.source.postMessage({id:event.data.id,result:null,error:{message:"Account locked",type:"notValid"}},firstOrigin);
+			var data = event.data;
+
+			// if(data == "enable") { // TODO move that into processMessage
+			// 	if(!accountPresent) {
+			// 		currentUserConfirmation = {id: 99999, method:"new_account", params:[]}; // TODO use diffetent object type, as they won;t give anything back to host (html-provider)
+			// 		authorizationLink.href = "popup.html#type=" + 'new_account' + "&id=" + currentUserConfirmation.id;
+			// 		source.postMessage("no_account","*"); //TODO do not use wildcard
+			// 	} else if (!enabled) {
+			// 		currentUserConfirmation = {id: 99999, method:"enable", params:[]}; // TODO use diffetent object type, as they won;t give anything back to host (html-provider)
+			// 		authorizationLink.href = "popup.html#type=" + 'enable' + "&id=" + currentUserConfirmation.id;
+			// 		source.postMessage("not_enabled","*"); //TODO do not use wildcard
+			// 	}
+			// 	return;
+			// }
+
+			if(!accountPresent) {
+				event.source.postMessage({id:data.id,result:null,error:{message:"No Account",type:"notValid"}},firstOrigin);
+			} else if(!enabled && data.method != 'enable') {
+				event.source.postMessage({id:data.id,result:null,error:{message:"Account locked",type:"notValid"}},firstOrigin);
 			} else {
-				var data = event.data;
 				try{
 					processMessage(data,event.source);
 				}catch(e){
@@ -172,14 +206,7 @@
 		}
 		
 		window.addEventListener("message", receiveMessage);
-
-		// TODO should this event be send after unlock / newAccount is resolved ?
-		// source.postMessage("ready","*"); //TODO do not use wildcard
-
-		// TODO send ready / unlock / newAccount 
-		currentUserConfirmation = {id: 99999, method:"unlock", params:[]}; // TODO use diffetent object type, as they won;t give anything back to host (html-provider)
-		authorizationLink.href = "popup.html#type=" + 'unlock' + "&id=" + currentUserConfirmation.id;
-		source.postMessage("unlock_required","*"); //TODO do not use wildcard
+		//TODO trigger ready so IfrAmeProvider can release the quued request after that // not the same ready as above (TODO delete or rename it to "enabled")
 		</script>
 	</body>
 </html>
