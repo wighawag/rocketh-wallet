@@ -4,7 +4,6 @@
 		<title>Test</title>
 	</head>
 	<body>
-        <!-- This exposes the library as a global variable: ethers -->
         <script src="./web3.min.js"
         charset="utf-8"
         type="text/javascript">
@@ -16,23 +15,15 @@
         </script>
 			
 		<script>
-            // var defaultProvider = new Web3.providers.HttpProvider('https://rinkeby.infura.io/v3/603eb7935c3b4d1285c08b68020c3001');
-            var base64Data = btoa("\<script\>window.parent.postMessage(\"enable_required\",\"*\");document.domain='testtt';\</script\>\<img src=\"http://localhost:3004/erererew\"\>\</img\>");
-            //var provider = new HtmlProvider('data:text/html;base64,' + base64Data, 'http://localhost:8545'); //'https://rinkeby.infura.io/v3/603eb7935c3b4d1285c08b68020c3001');
-            
             var provider = new HtmlProvider('http://localhost:3000', 'http://localhost:8545'); //'https://rinkeby.infura.io/v3/603eb7935c3b4d1285c08b68020c3001');
             
             var web3 = new Web3(provider);
-            provider.enable()
-                .then(function(){test(null, null)})
-                .catch(function(error){test(error?error:'rejected')});
-
-            function test(error, result) {
-                if(error) {
+            provider.enable().then(test)
+                .catch(function(error){
                     console.error('rejected', error);
-                } else {
-                    console.log('enable', result);
-                }
+                });
+
+            function test() {
                 web3.eth.getAccounts()
                     .then(function(accounts) {
                         console.log('accounts', accounts);
@@ -54,7 +45,6 @@
                     .catch(function(error) {
                         console.error('accounts error', error);
                     });
-
             }
             
 		</script>

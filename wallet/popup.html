@@ -306,7 +306,6 @@
 		</div> <!-- cd-popup -->
 
 		<script>
-			console.log('POPUP open by: ', window.opener);
 			var sourceURL = window.opener.location;
 
 			var id = 0;
@@ -345,8 +344,7 @@
 
 			function receiveMessage(event) {
 				if(event.origin == window.origin) {
-					// comign from iframe
-					console.log('POPUP receiving', event.data);
+					// comign from iframe // TODO what if popup is src-data (hard code the origin ?)
 				}
 			}
 			window.addEventListener("message", receiveMessage);

@@ -17,10 +17,10 @@ function HtmlProvider(trustedHost, readURL, opts) {
 	HtmlProvider.super_.call(self, this.opts.engine);
 
 	this.loaded = false;
-	this.counter = 0;
+	this.counter = 1;
 	this.callbacks = {};
 	this.trustedHost = trustedHost;
-	this.iframeURL = (trustedHost == "*" ? "" : trustedHost) + "/iframe.html"; // TODO do not allow wildcard
+	this.iframeURL = trustedHost + "/iframe.html";
 	
 	this.queue = []
 	 
@@ -29,7 +29,6 @@ function HtmlProvider(trustedHost, readURL, opts) {
 	
 	if(!currentIframe){	
 		currentIframe = document.createElement('iframe');
-		// currentIframe.sandbox = "allow-same-origin allow-scripts"; // TODO ? block from setting domain
 		document.body.appendChild(currentIframe);
 	}else{
 		window.removeEventListener("message", currentIframe.htmlProvider); 
@@ -43,28 +42,29 @@ function HtmlProvider(trustedHost, readURL, opts) {
 	this.pendingUserConfirmation = null;
 
 	this.handleEvent = function(event){
-		if(event.source != self.iframe.contentWindow){ // do not accept message from anything except the iframe
+		if(event.source != self.iframe.contentWindow || event.origin != self.trustedHost){
+			// ignore message not coming from the iframe
 			return;
 		}
 
-		// need to follow these requirements :
-		if(event.type != "message" || (event.origin != self.trustedHost && self.trustedHost != "*")){ // TODO do not allow wildcard
+		if(event.type != "message") {
+			console.error('only message expected from ' + self. trustedHost);
 			return;
 		}
 
-		console.log('receiving message from iframe: ', event.data);
-		
 		var data = event.data;
-		if (!data.error && data.requireUserConfirmation) { // no result givem (data.result : old payload)
-			// show popup / cancel old pending
+		if (!data.error && data.requireUserConfirmation) {
+			this.iframe.style.display = "block";
+
 			if (this.pendingUserConfirmation) {
 				self.executeCallback(this.pendingUserConfirmation.id, 'overriden by new user \'s confirmation request', null);		
 			}
+
 			this.pendingUserConfirmation = {
 				id: data.id,
 				payload: data.result
 			};
-			this.iframe.style.display = "block";
+			
 		} else {
 			if(this.pendingUserConfirmation && this.pendingUserConfirmation.id == data.id) {
 				this.iframe.style.display = "none";
@@ -78,20 +78,38 @@ function HtmlProvider(trustedHost, readURL, opts) {
 	
 	
 	this.iframe.onload = function(){
-		console.log('iframe loaded');
 		self.loaded = true;
 		var arrayLength = self.queue.length;
 		for (var i = 0; i < arrayLength; i++) {
 			var data = self.queue[i];
-			console.log('sending queued message : ', data.payload);
 			self.sendToIFrame(data.payload,data.callback);
 		}
 		self.queue.length = 0;
 	}
-	this.iframe.src = this.iframeURL;
-	console.log('loading iframe with ' + this.iframe.src);
+
+	function fetchXTimes(url) {
+		return fetch(url).then(function(response){
+			if(Math.random() > 0.5) { // TODO crypto random
+				return fetch(url);	
+			}
+			return response;
+		});
+	}
+
+	fetchXTimes(this.iframeURL).then(function(response){
+		if(response.body != "") { // TODO equality via hash ?
+			self.iframe.src = self.iframeURL;
+		} else {
+			console.error('SECURITY ALERT', response.body.toString());
+			// TODO log alert to the world
+		}
+	})
+	.catch(function(error){
+		console.error('FAILED TO LOAD IFRAME CONTENT', error);
+	})
 
 	this.setupEngine();
+	
 }
 
 HtmlProvider.prototype.executeCallback = function(id, error, result) {
@@ -115,7 +133,6 @@ HtmlProvider.prototype.enable = function() {
 }
 
 HtmlProvider.prototype.sendToIFrame = function (payload, callback) {
-	console.log('sendToIFrame', payload);
 	if(!this.loaded){
 		this.queue.push({payload:payload,callback:callback});
 		return;
@@ -130,9 +147,7 @@ HtmlProvider.prototype.sendToIFrame = function (payload, callback) {
 };
 
 HtmlProvider.prototype.setupEngine = function() {
-
 	var self = this;
-	self.counter = 1;
 
 	// static results
 	this.addProvider(new FixtureSubprovider({
@@ -159,7 +174,6 @@ HtmlProvider.prototype.setupEngine = function() {
 	this.addProvider(new HookedWalletSubprovider({
 		getAccounts: function(cb){
 			self.sendToIFrame({id:self.counter++, jsonrpc:"2.0", method:'eth_accounts', params:[]}, function(error, result) {
-				console.log('result from iframe', error, result);
 				cb(error, result);
 			});
 		},
@@ -170,13 +184,11 @@ HtmlProvider.prototype.setupEngine = function() {
 				txData.data = '0x' + txData.data;	
 			}
 			self.sendToIFrame({id:self.counter++, jsonrpc:"2.0", method:'eth_signTransaction', params:[txData]}, function(error, result) {
-				console.log('eth_signTransaction from iframe', error, result);
 				cb(error, result);
 			});
 		},
 		signMessage: function(msgParams, cb) {
 			self.sendToIFrame({id:self.counter++, jsonrpc:"2.0", method:'eth_signMessage', params:[msgParams.from, msgParams.data]}, function(error, result) {
-				console.log('eth_signMessage from iframe', error, result);
 				cb(error, result);
 			});	
 		}
@@ -186,13 +198,6 @@ HtmlProvider.prototype.setupEngine = function() {
 	this.addProvider(new RpcSubprovider({
 		rpcUrl: self.readURL,
 	}))
-	
-	// log new blocks
-	this.on('block', function(block){
-		console.log('================================')
-		console.log('BLOCK CHANGED:', '#'+block.number.toString('hex'), '0x'+block.hash.toString('hex'))
-		console.log('================================')
-	})
 	
 	// network connectivity error
 	this.on('error', function(err){

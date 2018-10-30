@@ -9,6 +9,7 @@
   },
   "devDependencies": {
     "browserify": "^16.2.3",
+    "ganache-cli": "^6.1.8",
     "lite-server": "^2.4.0",
     "watchify": "^3.11.0",
     "web3-provider-engine": "^14.1.0"
