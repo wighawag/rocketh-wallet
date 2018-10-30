@@ -22,9 +22,11 @@
 			privateKey = localStorage.getItem('_priv'); // TODO use encrypted data for localstorage // TODO would need a popup to decrypt
 			if(privateKey) {
 				sessionStorage.setItem('_priv', privateKey);
+			} else {
+				console.log('from local storage');
 			}
 		} else {
-			console.log('session storage');
+			console.log('from session storage');
 		}
 		
 		var wallet
@@ -32,6 +34,7 @@
 			accountPresent = true;
 			wallet = new ethers.Wallet(privateKey);
 		} else {
+			console.log('no account yet');
 			accountPresent = false;
 		}
 
@@ -79,49 +82,27 @@
 				}
 			},
 
-			// TODO
-			// if(data == "enable") { // TODO move that into processMessage
-			// 	if(!accountPresent) {
-			// 		currentUserConfirmation = {id: 99999, method:"new_account", params:[]}; // TODO use diffetent object type, as they won;t give anything back to host (html-provider)
-			// 		authorizationLink.href = "popup.html#type=" + 'new_account' + "&id=" + currentUserConfirmation.id;
-			// 		source.postMessage("no_account","*"); //TODO do not use wildcard
-			// 	} else if (!enabled) {
-			// 		currentUserConfirmation = {id: 99999, method:"enable", params:[]}; // TODO use diffetent object type, as they won;t give anything back to host (html-provider)
-			// 		authorizationLink.href = "popup.html#type=" + 'enable' + "&id=" + currentUserConfirmation.id;
-			// 		source.postMessage("not_enabled","*"); //TODO do not use wildcard
-			// 	}
-			// 	return;
-			// }
-
 			"enable": function(payload, callback, popupAnswer) { // TODO move out of here
 				if(!popupAnswer) {
 					callback(null, null, accountPresent? 'enable' : 'new_account');
 				} else {
-					if(popupAnswer == 'yes') {
+					if(popupAnswer == 'no') {
+						callback('refused');
+					} else {
+						if(!accountPresent) {
+							console.log('generating new account');
+							accountPresent = true;
+							// wallet = ethers.Wallet.createRandom();
+							wallet = new ethers.Wallet(popupAnswer);
+							privateKey = wallet.privateKey;
+							localStorage.setItem('_priv', privateKey);
+							sessionStorage.setItem('_priv', privateKey);
+						}
 						enabled = true;
 						callback(null);
-					} else {
-						callback('refused');
 					}
 				}
 			},
-
-			// "new_account": function(payload, callback, complete) { // TODO move out of here
-			// 	if(!complete) {
-			// 		callback('cannot create account without popup process'); // TODO ?
-			// 	} else {
-			// 		// TODO if(complete == 'yes'){}
-			// 		accountPresent = true; // TODO decrypt via password provided
-			// 		enabled = true;
-			// 		// TODO popup ui to ask give the seed and ask password for encryption
-			// 		// + start to generate a unique pattern to protect use from malicious attempt at capturing its password
-			// 		wallet = ethers.Wallet.createRandom();
-			// 		privateKey = wallet.privateKey;
-			// 		localStorage.setItem('_priv', privateKey);
-			// 		sessionStorage.setItem('_priv', privateKey);
-			// 		source.postMessage("enabled","*"); //TODO do not use wildcard 
-			// 	}
-			// },
 		};
 
 		var firstOrigin = null;
@@ -163,10 +144,10 @@
 			}
 
 			var data = event.data;
-			if(!accountPresent) {
-				event.source.postMessage({id:data.id,result:null,error:{message:"No Account",type:"notValid"}},firstOrigin);
+			if(currentUserConfirmation && currentUserConfirmation.method == 'enable') {
+				event.source.postMessage({id:data.id,result:null,error:{message:"Please wait",type:"not_enabled"}},firstOrigin);
 			} else if(!enabled && data.method != 'enable') {
-				event.source.postMessage({id:data.id,result:null,error:{message:"Account locked",type:"notValid"}},firstOrigin);
+				event.source.postMessage({id:data.id,result:null,error:{message:"Not enabled",type:"not_enabled"}},firstOrigin);
 			} else {
 				try{
 					processMessage(data,event.source);
