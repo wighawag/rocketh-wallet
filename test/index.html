@@ -1,9 +1,38 @@
 <!DOCTYPE html>
 <html>
 	<head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+
+        <!-- https://cdnjs.cloudflare.com/ajax/libs/bulma/0.7.2/css/bulma.min.css -->
+        <link rel="stylesheet" href="css/bulma_0.7.2.min.css">
+        
+        <!-- https://use.fontawesome.com/releases/v5.3.1/js/all.js -->
+        <script defer src="js/fontawesome_5.3.1.js"></script> 
+
 		<title>Test</title>
 	</head>
 	<body>
+        <section class="section">
+        <div class="container">
+            <h1 class="title">Sign Message</h1>
+            <h2 id="address">?</h2>
+            <div class="field">
+                <label class="label">Message</label>
+                <div class="control">
+                    <input id="input" class="input" type="text" placeholder="Text input">
+                </div>
+            </div>
+            <div class="field">
+                <div class="control">
+                    <button class="button is-link" onclick="test()">Submit</button>
+                </div>
+            </div>
+            <h2 id="signedMessage">?</h2>
+            
+        </div>
+        </section>
+
         <script src="./web3.min.js"
         charset="utf-8"
         type="text/javascript">
@@ -15,36 +44,43 @@
         </script>
 			
 		<script>
+            var accounts;
             var provider = new HtmlProvider('http://localhost:3000', 'http://localhost:8545'); //'https://rinkeby.infura.io/v3/603eb7935c3b4d1285c08b68020c3001');
             
             var web3 = new Web3(provider);
-            provider.enable().then(test)
+            provider.enable().then(enabled)
                 .catch(function(error){
                     console.error('rejected', error);
                 });
 
-            function test() {
+            function enabled() {
+                console.log('ready');
                 web3.eth.getAccounts()
-                    .then(function(accounts) {
+                    .then(function(accountsReceived) {
+                        accounts = accountsReceived;
+                        document.getElementById("address").innerHTML = accounts[0];
                         console.log('accounts', accounts);
-                        return web3.eth.sign('hello world', accounts[0])
-                            .then(function(signedMessage) {
-                                console.log('signedMessage', signedMessage);
-                            })
-                            .catch(function(error) {
-                                console.error('signing error', error);
-                            });
-                        // return web3.eth.sendTransaction({from:accounts[0], to:accounts[0], value:1, gas:1})
-                        //     .then(function(receipt) {
-                        //         console.log('receipt', receipt);
-                        //     })
-                        //     .catch(function(error) {
-                        //         console.error('sendTransaction error', error);
-                        //     });
                     })
                     .catch(function(error) {
                         console.error('accounts error', error);
                     });
+            }
+            function test() {
+                web3.eth.sign(document.getElementById('input').value, accounts[0])
+                    .then(function(signedMessage) {
+                        document.getElementById("signedMessage").innerHTML = signedMessage;
+                        console.log('signedMessage', signedMessage);
+                    })
+                    .catch(function(error) {
+                        console.error('signing error', error);
+                    });
+                    // return web3.eth.sendTransaction({from:accounts[0], to:accounts[0], value:1, gas:1})
+                    //     .then(function(receipt) {
+                    //         console.log('receipt', receipt);
+                    //     })
+                    //     .catch(function(error) {
+                    //         console.error('sendTransaction error', error);
+                    //     });
             }
             
 		</script>

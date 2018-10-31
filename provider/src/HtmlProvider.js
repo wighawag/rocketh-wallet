@@ -46,12 +46,12 @@ function HtmlProvider(trustedHost, readURL, opts) {
 	this.iframe.style.right = "0";
 	this.iframe.style.minWidth = "100%";
 	this.iframe.style.borderWidth = "0px";
-	this.iframe.style.backgroundColor = "#29ADFF";
+	// this.iframe.style.backgroundColor = "#29ADFF";
 	
 
 	this.iframe.className = "invisible";
 
-	this.iframe.height = "50px";
+	// this.iframe.height = "50px";
 
 const css =
 `
@@ -186,6 +186,7 @@ HtmlProvider.prototype.enable = function() {
 	var self = this;
 	return new Promise(function(resolve, reject){
 		console.log('ENABLING');
+		// TODO open popup // if block provide link
 		self.sendToIFrame({id:self.counter++, jsonrpc:"2.0", method:'enable', params:[]}, function(error, result){
 			if(error) {
 				reject();
