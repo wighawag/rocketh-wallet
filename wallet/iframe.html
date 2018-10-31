@@ -12,31 +12,50 @@
 		</script>
 		
 		<script>
-		var authorizationLink = document.getElementById('authorizationLink');
+		function save() {
+			sessionStorage.setItem('_priv', privateKey); // TODO save mnemonic ?
+			localStorage.setItem('_priv', privateKey);
+			sessionStorage.setItem('_enabled', enabled); 
+			localStorage.setItem('_enabled', enabled);
+		}
 
 		// TODO do not leave unecnryoted, except for sessionStorage to provide an better UX // TODO no as this might be save to disk too?
-		var privateKey = sessionStorage.getItem('_priv');
+		function load() {
+			privateKey = sessionStorage.getItem('_priv');
+			enabled = false;
+			accountPresent = false;
+			if(!privateKey) {
+				privateKey = localStorage.getItem('_priv'); // TODO use encrypted data for localstorage // TODO would need a popup to decrypt
+				if(privateKey) {
+					enabled = localStorage.getItem('_enabled');
+					console.log('from local storage');
+					sessionStorage.setItem('_priv', privateKey);
+					sessionStorage.setItem('_enabled', enabled); // TODO per origin
+				} else {
+					console.log('no account yet');
+				}
+			} else {
+				enabled = sessionStorage.getItem('_enabled');
+				console.log('from session storage');
+			}
+			if(privateKey)  {
+				accountPresent = true;
+				wallet = new ethers.Wallet(privateKey);
+			} else {
+				accountPresent = false;
+			}
+		}
+
+		var authorizationLink = document.getElementById('authorizationLink');
+
+		
+		var wallet;
+		var privateKey;
 		var enabled = false;
 		var accountPresent = false;
-		if(!privateKey) {
-			privateKey = localStorage.getItem('_priv'); // TODO use encrypted data for localstorage // TODO would need a popup to decrypt
-			if(privateKey) {
-				console.log('from local storage');
-				sessionStorage.setItem('_priv', privateKey);
-			} else {
-				console.log('no account yet');
-			}
-		} else {
-			console.log('from session storage');
-		}
 		
-		var wallet
-		if(privateKey)  {
-			accountPresent = true;
-			wallet = new ethers.Wallet(privateKey);
-		} else {
-			accountPresent = false;
-		}
+		load();
+		
 
 		var supportedMethods = {
 			"eth_accounts": function (payload, callback) {
@@ -89,16 +108,15 @@
 					if(popupAnswer == 'no') {
 						callback('refused');
 					} else {
+						enabled = true;
 						if(!accountPresent) {
 							console.log('generating new account');
 							accountPresent = true;
 							// wallet = ethers.Wallet.createRandom();
 							wallet = new ethers.Wallet(popupAnswer);
 							privateKey = wallet.privateKey;
-							localStorage.setItem('_priv', privateKey);
-							sessionStorage.setItem('_priv', privateKey);
+							save();
 						}
-						enabled = true;
 						callback(null);
 					}
 				}
@@ -141,6 +159,7 @@
 				}
 			}else{
 				firstOrigin = event.origin;
+				console.log('origin', firstOrigin);
 			}
 
 			var data = event.data;
@@ -150,7 +169,7 @@
 				event.source.postMessage({id:data.id,result:null,error:{message:"Not enabled",type:"not_enabled"}},firstOrigin);
 			} else {
 				try{
-					processMessage(data,event.source);
+					processMessage(data,event.source, data.method == 'enable' ? enabled : null);
 				}catch(e){
 					event.source.postMessage({id:data.id,result:null,error:{message:"Could not process message data",type:"notValid"}},firstOrigin);
 					console.error("Error", "The application has sent invalid data", data);
