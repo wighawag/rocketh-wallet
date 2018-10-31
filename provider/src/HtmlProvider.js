@@ -37,7 +37,65 @@ function HtmlProvider(trustedHost, readURL, opts) {
 	this.iframe = currentIframe;
 	this.iframe.htmlProvider = this;
 	this.iframe.id = iframeId; 
-	this.iframe.style.display = "none";
+	
+	this.iframe.style.position = "fixed";
+	this.iframe.style.zIndex = 999;
+	this.iframe.style.top = "0px";
+	this.iframe.style.margin = "0";
+	this.iframe.style.left = "0";
+	this.iframe.style.right = "0";
+	this.iframe.style.minWidth = "100%";
+	this.iframe.style.borderWidth = "0px";
+	this.iframe.style.backgroundColor = "#29ADFF";
+	
+
+	this.iframe.className = "invisible";
+
+	this.iframe.height = "50px";
+
+const css =
+`
+.invisible{
+	visibility: hidden;
+}
+.fadein
+{
+    visibility: visible;
+
+    -webkit-animation: fadein .5s;
+            animation: fadein .5s;
+}
+
+@-webkit-keyframes fadein
+{
+    from
+    {
+        top: -50px;
+    }
+    to
+    {
+        top: 0px;
+	}
+	animation-timing-function: ease-out
+}
+
+@keyframes fadein
+{
+    from
+    {
+        top: -50px;
+    }
+    to
+    {
+        top: 0px;
+	}
+	animation-timing-function: ease-out
+}
+`;
+var node = document.createElement('style');
+document.body.appendChild(node);
+node.innerHTML = css;
+	
 
 	this.pendingUserConfirmation = null;
 
@@ -54,8 +112,11 @@ function HtmlProvider(trustedHost, readURL, opts) {
 
 		var data = event.data;
 		if (!data.error && data.requireUserConfirmation) {
-			this.iframe.style.display = "block";
-
+			if(this.iframe.className != "fadein") {
+				console.log('show iframe');
+				this.iframe.className = "fadein";
+			}
+			
 			if (this.pendingUserConfirmation) {
 				self.executeCallback(this.pendingUserConfirmation.id, 'overriden by new user \'s confirmation request', null);		
 			}
@@ -67,7 +128,10 @@ function HtmlProvider(trustedHost, readURL, opts) {
 			
 		} else {
 			if(this.pendingUserConfirmation && this.pendingUserConfirmation.id == data.id) {
-				this.iframe.style.display = "none";
+				if(this.iframe.className != "invisible") {
+					console.log('hide iframe');
+					this.iframe.className = "invisible";
+				}
 				this.pendingUserConfirmation = null;
 			}
 			self.executeCallback(data.id, data.error, data.result);

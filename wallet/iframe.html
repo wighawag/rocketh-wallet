@@ -4,7 +4,7 @@
 		<title>Hidden Iframe</title>
 	</head>
 	<body>
-		<a id='authorizationLink' href="popup.html#type=transaction&id=1" target="_blank">Auhtorization Requested!</a>
+		<center><a id='authorizationLink' href="popup.html#type=transaction&id=1" target="_blank">Auhtorization Requested!</a></center>
 	
 		<!-- ethers.js  -->
 		<script type="text/javascript">
@@ -21,9 +21,10 @@
 		if(!privateKey) {
 			privateKey = localStorage.getItem('_priv'); // TODO use encrypted data for localstorage // TODO would need a popup to decrypt
 			if(privateKey) {
+				console.log('from local storage');
 				sessionStorage.setItem('_priv', privateKey);
 			} else {
-				console.log('from local storage');
+				console.log('no account yet');
 			}
 		} else {
 			console.log('from session storage');
@@ -34,7 +35,6 @@
 			accountPresent = true;
 			wallet = new ethers.Wallet(privateKey);
 		} else {
-			console.log('no account yet');
 			accountPresent = false;
 		}
 
@@ -44,7 +44,7 @@
 			},
 			"eth_signTransaction": function (payload, callback, confirmed) {
 				if(!confirmed) {
-					callback(null, null, 'transaction');
+					callback(null, null, 'eth_signTransaction');
 				} else {
 					if(confirmed == 'yes') {
 						wallet.sign(payload.params[0])
@@ -66,7 +66,7 @@
 					return;	
 				}
 				if(!popupAnswer) {
-					callback(null, null, 'transaction');
+					callback(null, null, 'eth_signMessage');
 				} else {
 					if(popupAnswer == 'yes') {
 						wallet.signMessage(payload.params[0])
@@ -164,6 +164,17 @@
 					if(confirmationType) {
 						currentUserConfirmation = payload; // TODO queue system ?
 						authorizationLink.href = "popup.html#type=" + confirmationType + "&id=" + payload.id;
+						if (confirmationType == "new_account") {
+							authorizationLink.innerHTML = "Welcome!"
+						} else if (confirmationType == "enable") {
+							authorizationLink.innerHTML = "Apps want to connect to your account";
+						} else if (confirmationType == "eth_signMessage") {
+							authorizationLink.innerHTML = "Signature Requested";
+						} else if (confirmationType == "new_account") {
+							authorizationLink.innerHTML = "Transaction Requested";
+						} else {
+							authorizationLink.innerHTML = "Authorization Requested";
+						}
 					}
 					sourceWindow.postMessage({id:payload.id, result:result, error:error, requireUserConfirmation:confirmationType != null}, firstOrigin);
 				}, 
