@@ -3,7 +3,7 @@
 var middleware = [
     function (req, res, next) {
         console.log(req.url);
-        if(req.url == '/iframe.html') {
+        if(req.url == '/index.html' || req.url == "/") {
             res.setHeader('Access-Control-Allow-Origin', '*');
             // res.setHeader('Cache-Control', 'public, max-age=31536000'); // TODO
             // res.setHeader('ETag', 'fixed1'); // TODO

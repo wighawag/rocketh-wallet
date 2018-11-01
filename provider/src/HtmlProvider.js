@@ -20,7 +20,7 @@ function HtmlProvider(trustedHost, readURL, opts) {
 	this.counter = 1;
 	this.callbacks = {};
 	this.trustedHost = trustedHost;
-	this.iframeURL = trustedHost + "/iframe.html";
+	this.iframeURL = trustedHost;
 	
 	this.queue = []
 	 
