@@ -213,8 +213,12 @@
 							currentUserConfirmation = null;
 							sourceWindow.postMessage({id:payload.id, result:null, error:{message:"user refuxsed", type:"notSupported"}},firstOrigin);
 						}
+						ignoreButton.style.display = "inline-flex";
+						showMeButton.innerHTML = "Show Me";
 						if (confirmationType == "new_account") {
 							authorizationRequestTitle.innerHTML = "Welcome!"
+							ignoreButton.style.display = "none";
+							showMeButton.innerHTML = "Create Account";
 						} else if (confirmationType == "enable") {
 							authorizationRequestTitle.innerHTML = "Apps want to connect to your account";
 						} else if (confirmationType == "eth_signMessage") {
