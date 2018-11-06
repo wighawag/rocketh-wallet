@@ -182,12 +182,13 @@ HtmlProvider.prototype.executeCallback = function(id, error, result) {
 	callback(error, result);
 }
 
+// TODO use send('eth_requestAccounts')
 HtmlProvider.prototype.enable = function() {
 	var self = this;
 	return new Promise(function(resolve, reject){
 		console.log('ENABLING');
 		// TODO open popup // if block provide link
-		self.sendToIFrame({id:self.counter++, jsonrpc:"2.0", method:'enable', params:[]}, function(error, result){
+		self.sendToIFrame({id:self.counter++, jsonrpc:"2.0", method:'eth_requestAccounts', params:[]}, function(error, result){
 			if(error) {
 				reject();
 			} else {

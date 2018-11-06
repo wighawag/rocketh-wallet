@@ -16,7 +16,7 @@
         <section class="section">
         <div class="container">
             <h1 class="title">Sign Message</h1>
-            <h2 id="address">?</h2>
+            <h2>account : <span id="address">?</span></h2>
             <div class="field">
                 <label class="label">Message</label>
                 <div class="control">
@@ -28,7 +28,7 @@
                     <button class="button is-link" onclick="test()">Submit</button>
                 </div>
             </div>
-            <h2 id="signedMessage">?</h2>
+            <h2>result : <span id="result">?</span></h2>
             
         </div>
         </section>
@@ -50,6 +50,8 @@
             var web3 = new Web3(provider);
             provider.enable().then(enabled)
                 .catch(function(error){
+                    document.getElementById("result").innerHTML = 'user did not accept';
+                    document.getElementById("result").style.color = 'red';
                     console.error('rejected', error);
                 });
 
@@ -60,18 +62,27 @@
                         accounts = accountsReceived;
                         document.getElementById("address").innerHTML = accounts[0];
                         console.log('accounts', accounts);
+                        // document.getElementById("submitButton"); // TODO enable button
                     })
                     .catch(function(error) {
+                        document.getElementById("result").innerHTML = error.message;
+                        document.getElementById("result").style.color = 'red';
                         console.error('accounts error', error);
                     });
             }
             function test() {
+                if(!accounts || accounts.length == 0) {
+                    return;
+                }
                 web3.eth.sign(document.getElementById('input').value, accounts[0])
                     .then(function(signedMessage) {
-                        document.getElementById("signedMessage").innerHTML = signedMessage;
+                        document.getElementById("result").innerHTML = signedMessage;
+                        document.getElementById("result").style.color = 'black';
                         console.log('signedMessage', signedMessage);
                     })
                     .catch(function(error) {
+                        document.getElementById("result").innerHTML = error.message;
+                        document.getElementById("result").style.color = 'red';
                         console.error('signing error', error);
                     });
                     // return web3.eth.sendTransaction({from:accounts[0], to:accounts[0], value:1, gas:1})

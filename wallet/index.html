@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html>
 	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1">	
 		<title>Authorization Request</title>
 		<style>
 			/*!
@@ -255,9 +257,9 @@
 						}
 					},
 
-					"enable": function(payload, callback, popupAnswer) { // TODO move out of here
+					"eth_requestAccounts": function(payload, callback, popupAnswer) { // TODO move out of here
 						if(!popupAnswer) {
-							callback(null, null, accountPresent? 'enable' : 'new_account');
+							callback(null, null, 'eth_requestAccounts');
 						} else {
 							if(popupAnswer == 'no') {
 								callback('refused');
@@ -269,8 +271,8 @@
 									// wallet = ethers.Wallet.createRandom();
 									wallet = new ethers.Wallet.fromMnemonic(popupAnswer);
 									privateKey = wallet.privateKey;
-									save();
 								}
+								save();
 								callback(null);
 							}
 						}
@@ -317,13 +319,13 @@
 					}
 
 					var data = event.data;
-					if(currentUserConfirmation && currentUserConfirmation.method == 'enable') {
+					if(currentUserConfirmation && currentUserConfirmation.method == 'eth_requestAccounts') {
 						event.source.postMessage({id:data.id,result:null,error:{message:"Please wait",type:"not_enabled"}},firstOrigin);
-					} else if(!enabled[firstOrigin] && data.method != 'enable') {
+					} else if(!enabled[firstOrigin] && data.method != 'eth_requestAccounts') {
 						event.source.postMessage({id:data.id,result:null,error:{message:"Not enabled",type:"not_enabled"}},firstOrigin);
 					} else {
 						try{
-							processMessage(data,event.source, data.method == 'enable' ? enabled[firstOrigin] : null);
+							processMessage(data,event.source, data.method == 'eth_requestAccounts' ? enabled[firstOrigin] : null);
 						}catch(e){
 							event.source.postMessage({id:data.id,result:null,error:{message:"Could not process message data",type:"notValid"}},firstOrigin);
 							console.error("Error", "The application has sent invalid data", data);
@@ -335,27 +337,38 @@
 					if(supportedMethods[payload.method]){
 						supportedMethods[payload.method](payload, function(error, result, confirmationType) {
 							if(confirmationType) {
+								var popupType = confirmationType;
+								var showMeText = "Show Me";
+								var ignoreText = "Ignore";
+								var ignoreEnabled = true;
+								var title = "Authorization Requested";
+
+								if (confirmationType == "eth_requestAccounts") {
+									if(!accountPresent) {
+										popupType = "new_account";
+										title = "Welcome!"
+										ignoreEnabled = false;
+										showMeText = "Create Account";
+									} else {
+										title = "App wants to connect to your account";
+									}
+								} else if (confirmationType == "eth_signMessage") {
+									title = "Signature Requested";
+								}
 								currentUserConfirmation = payload; // TODO queue system ?
-								showMeButton.href = "#type=" + confirmationType + "&id=" + payload.id;
+								showMeButton.href = "#type=" + popupType + "&id=" + payload.id;
 								ignoreButton.onclick = function(){
 									currentUserConfirmation = null;
-									sourceWindow.postMessage({id:payload.id, result:null, error:{message:"user refuxsed", type:"notSupported"}},firstOrigin);
+									sourceWindow.postMessage({id:payload.id, result:null, error:{message:"user refused", type:"user_rejected"}},firstOrigin);
 								}
-								ignoreButton.style.display = "inline-flex";
-								showMeButton.innerHTML = "Show Me";
-								if (confirmationType == "new_account") {
-									authorizationRequestTitle.innerHTML = "Welcome!"
-									ignoreButton.style.display = "none";
-									showMeButton.innerHTML = "Create Account";
-								} else if (confirmationType == "enable") {
-									authorizationRequestTitle.innerHTML = "Apps want to connect to your account";
-								} else if (confirmationType == "eth_signMessage") {
-									authorizationRequestTitle.innerHTML = "Signature Requested";
-								} else if (confirmationType == "new_account") {
-									authorizationRequestTitle.innerHTML = "Transaction Requested";
+								if(ignoreEnabled){
+									ignoreButton.style.display = "inline-flex";
 								} else {
-									authorizationRequestTitle.innerHTML = "Authorization Requested";
+									ignoreButton.style.display = "none";
 								}
+								authorizationRequestTitle.innerHTML = title;
+								showMeButton.innerHTML = showMeText;
+								ignoreButton.innerHTML = ignoreText;
 							}
 							sourceWindow.postMessage({id:payload.id, result:result, error:error, requireUserConfirmation:confirmationType != null}, firstOrigin);
 						}, 
